@@ -2,10 +2,12 @@
 #![no_main]
 #![no_std]
 
+extern crate f3;
 extern crate pg;
 
 use pg::delay;
 use pg::led::{Led, LEDS};
+use f3::peripheral;
 
 struct LedPattern<'a> {
     led: &'a Led,
@@ -25,37 +27,25 @@ impl<'a> LedPattern<'a> {
         };
     }
 }
-
-//static static_patterns: [&'static LedPattern; 8] = [
-//    LedPattern::new(&LEDS[0], 0),
-//    LedPattern::new(&LEDS[1], 1),
-//    LedPattern::new(&LEDS[2], 2),
-//    LedPattern::new(&LEDS[3], 3),
-//    LedPattern::new(&LEDS[4], 4),
-//    LedPattern::new(&LEDS[5], 5),
-//    LedPattern::new(&LEDS[6], 6),
-//    LedPattern::new(&LEDS[7], 7),
-//];
+const PATTERNS: [LedPattern<'static>; 8] = [
+    LedPattern { led: &LEDS[0], step: 0 },
+    LedPattern { led: &LEDS[1], step: 1 },
+    LedPattern { led: &LEDS[2], step: 2 },
+    LedPattern { led: &LEDS[3], step: 3 },
+    LedPattern { led: &LEDS[4], step: 4 },
+    LedPattern { led: &LEDS[5], step: 5 },
+    LedPattern { led: &LEDS[6], step: 6 },
+    LedPattern { led: &LEDS[7], step: 7 },
+];
 
 #[inline(never)]
 #[no_mangle]
 pub fn main() -> ! {
     let half_period = 100;
 
-    let patterns: [LedPattern; 8] = [
-        LedPattern::new(&LEDS[0], 0),
-        LedPattern::new(&LEDS[1], 1),
-        LedPattern::new(&LEDS[2], 2),
-        LedPattern::new(&LEDS[3], 3),
-        LedPattern::new(&LEDS[4], 4),
-        LedPattern::new(&LEDS[5], 5),
-        LedPattern::new(&LEDS[6], 6),
-        LedPattern::new(&LEDS[7], 7),
-    ];
-
     loop {
         for i in 0..16 {
-            for pattern in patterns.iter() {
+            for pattern in PATTERNS.iter() {
                 pattern.tick(i);
             }
             delay::ms(half_period);

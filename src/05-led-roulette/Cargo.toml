@@ -10,3 +10,11 @@ pg = { path = "pg" }
 lto = true
 opt-level = 3
 debug = true
+
+[dependencies.f3]
+default-features = false
+version = "0.3.0"
+
+[replace]
+"f3:0.3.0" = { path = "/Users/manuel/code/misc/rust/novembrs/f3" }
+
