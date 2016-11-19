@@ -6,3 +6,8 @@ authors = ["Jorge Aparicio <japaricious@gmail.com>"]
 [dependencies.f3]
 default-features = false
 version = "0.3.0"
+
+[profile.release]
+opt-level = 3
+debug = true
+lto = true
