@@ -36,6 +36,30 @@ fn main_roulette() {
     }
 }
 
+// button interaction
+fn config_user_button() {
+    // configure PA0 as input
+    gpioa_mut().moder.modify(|_, w| w.moder0(0b00));
+    // 00 = no pull
+    // 01 = pull-up
+    // 10 = pull-down
+    gpioa_mut().pupdr.modify(|_, w| w.pupdr0(0b01));
+}
+
+fn main_button() -> ! {
+    config_user_button();
+
+    loop {
+        if gpioa().idr.read().ird0() {
+            LEDS[0].on();
+        } else {
+            LEDS[0].off();
+        }
+
+    }
+}
+
+// GPIO mappings
 unsafe fn deref<T>(address: usize) -> &'static T {
     &*(address as *const T)
 }
@@ -117,7 +141,8 @@ pub fn main_registers() {
 pub fn main() -> ! {
 //    main_println();
 //    main_roulette();
-    main_registers();
+//    main_registers();
+    main_button();
 
     loop {}
 }
