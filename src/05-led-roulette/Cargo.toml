@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 pg = { path = "pg" }
+volatile-register = "0.1.2"
 
 [profile.release]
 lto = true
@@ -14,6 +15,10 @@ debug = true
 [dependencies.f3]
 default-features = false
 version = "0.3.0"
+features = [
+    "default-exception-handler",
+    "default-panic-fmt",
+]
 
 [replace]
 "f3:0.3.0" = { path = "/Users/manuel/code/misc/rust/novembrs/f3" }

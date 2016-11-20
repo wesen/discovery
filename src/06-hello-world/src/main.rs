@@ -9,6 +9,7 @@ extern crate pg;
 #[no_mangle]
 pub fn main() -> ! {
     iprintln!("Hello, world!");
+    panic!("Hello world");
 
     loop {}
 }

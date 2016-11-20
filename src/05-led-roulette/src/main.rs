@@ -1,54 +1,123 @@
-#![deny(unsafe_code)]
+//#![deny(unsafe_code)]
 #![no_main]
 #![no_std]
 
+#[macro_use]
 extern crate f3;
 extern crate pg;
+extern crate volatile_register;
 
 use pg::delay;
 use pg::led::{Led, LEDS};
-use f3::peripheral;
 
-struct LedPattern<'a> {
-    led: &'a Led,
-    step: u8
+mod i2c;
+mod gpio;
+mod base;
+
+use gpio::Gpioa;
+
+fn main_println() {
+    let half_period = 100;
+
+    iprintln!("Hello world {}", half_period);
+    panic!("Hello world");
 }
 
-impl<'a> LedPattern<'a> {
-    fn new(led: &'a Led, step: u8) -> LedPattern {
-        LedPattern { led: led, step: step }
-    }
+fn main_roulette() {
+    let half_period = 100;
 
-    fn tick(&self, t: u8) {
-        let diff = ((self.step * 2) as i8) - (t as i8);
-        match diff {
-            - 2 | - 1 | 0 | 14 => self.led.on(),
-            _ => self.led.off(),
-        };
+    loop {
+        for (current, next) in LEDS.iter().zip(LEDS.iter().cycle().skip(1)) {
+            next.on();
+            delay::ms(half_period);
+            current.off();
+            delay::ms(half_period);
+        }
     }
 }
-const PATTERNS: [LedPattern<'static>; 8] = [
-    LedPattern { led: &LEDS[0], step: 0 },
-    LedPattern { led: &LEDS[1], step: 1 },
-    LedPattern { led: &LEDS[2], step: 2 },
-    LedPattern { led: &LEDS[3], step: 3 },
-    LedPattern { led: &LEDS[4], step: 4 },
-    LedPattern { led: &LEDS[5], step: 5 },
-    LedPattern { led: &LEDS[6], step: 6 },
-    LedPattern { led: &LEDS[7], step: 7 },
-];
+
+unsafe fn deref<T>(address: usize) -> &'static T {
+    &*(address as *const T)
+}
+
+unsafe fn deref_mut<T>(address: usize) -> &'static mut T {
+    &mut *(address as *mut T)
+}
+
+pub fn gpioe() -> &'static Gpioa {
+    unsafe { deref(base::GPIOE) }
+}
+
+pub fn gpioe_mut() -> &'static mut Gpioa {
+    unsafe { deref_mut(base::GPIOE) }
+}
+
+pub fn gpioa() -> &'static Gpioa {
+    unsafe { deref(base::GPIOA) }
+}
+
+pub fn gpioa_mut() -> &'static Gpioa {
+    unsafe { deref_mut(base::GPIOA) }
+}
+
+#[no_mangle]
+#[inline(never)]
+pub fn main_registers() {
+    use core::ptr;
+
+    unsafe {
+        const GPIOE_BSRR: u32 = 0x4800_1018;
+
+        gpioe_mut().bsrr.write(|w| { w.br9(true) });
+        gpioe_mut().bsrr.write(|w| { w.br11(true) });
+        gpioe_mut().bsrr.write(|w| { w.br9(false) });
+        gpioe_mut().bsrr.write(|w| { w.br11(false) });
+
+
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 9);
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 11);
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (9 + 16));
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (11 + 16));
+
+//        ptr::read_volatile(0x4800_1800 as *const u32);
+    }
+
+    unsafe {
+        const GPIOE_BSRR: u32 = 0x4800_1018;
+        const GPIOE_ODR: u32 = 0x4800_1014;
+
+        iprintln!("ODR = 0x{:04x}",
+                  ptr::read_volatile(GPIOE_ODR as *const u16));
+
+        // Turn on the NORTH LED (red)
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 9);
+
+        iprintln!("ODR = 0x{:04x}",
+                  ptr::read_volatile(GPIOE_ODR as *const u16));
+
+        // Turn on the EAST LED (green)
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 11);
+
+        iprintln!("ODR = 0x{:04x}",
+                  ptr::read_volatile(GPIOE_ODR as *const u16));
+
+        // Turn off the NORTH LED
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (9 + 16));
+
+        iprintln!("ODR = 0x{:04x}",
+                  ptr::read_volatile(GPIOE_ODR as *const u16));
+
+        // Turn off the EAST LED
+        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (11 + 16));
+    }
+}
 
 #[inline(never)]
 #[no_mangle]
 pub fn main() -> ! {
-    let half_period = 100;
+//    main_println();
+//    main_roulette();
+    main_registers();
 
-    loop {
-        for i in 0..16 {
-            for pattern in PATTERNS.iter() {
-                pattern.tick(i);
-            }
-            delay::ms(half_period);
-        }
-    }
+    loop {}
 }
