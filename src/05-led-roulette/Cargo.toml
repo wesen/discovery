@@ -6,6 +6,7 @@ version = "0.1.0"
 [dependencies]
 pg = { path = "pg" }
 volatile-register = "0.1.2"
+cortex-m = "0.1.3"
 
 [profile.release]
 lto = true
@@ -18,6 +19,7 @@ version = "0.3.0"
 features = [
     "default-exception-handler",
     "default-panic-fmt",
+    "interrupts",
 ]
 
 [replace]
