@@ -13,8 +13,10 @@ use pg::led::{Led, LEDS};
 mod i2c;
 mod gpio;
 mod base;
+mod rcc;
 
 use gpio::Gpioa;
+use rcc::Rcc;
 
 fn main_println() {
     let half_period = 100;
@@ -38,19 +40,26 @@ fn main_roulette() {
 
 // button interaction
 fn config_user_button() {
+    // power on GPIOA
+    rcc_mut().ahbenr.modify(|_, w| w.iopaen(true) );
+
     // configure PA0 as input
     gpioa_mut().moder.modify(|_, w| w.moder0(0b00));
     // 00 = no pull
     // 01 = pull-up
     // 10 = pull-down
-    gpioa_mut().pupdr.modify(|_, w| w.pupdr0(0b01));
+    gpioa_mut().pupdr.modify(|_, w| w.pupdr0(0b00));
 }
 
 fn main_button() -> ! {
     config_user_button();
 
     loop {
-        if gpioa().idr.read().ird0() {
+        let b = gpioa().idr.read().idr0();
+
+        iprintln!("b: {}", b);
+
+        if gpioa().idr.read().idr0() {
             LEDS[0].on();
         } else {
             LEDS[0].off();
@@ -80,8 +89,16 @@ pub fn gpioa() -> &'static Gpioa {
     unsafe { deref(base::GPIOA) }
 }
 
-pub fn gpioa_mut() -> &'static Gpioa {
+pub fn gpioa_mut() -> &'static mut Gpioa {
     unsafe { deref_mut(base::GPIOA) }
+}
+
+pub fn rcc() -> &'static Rcc {
+    unsafe { deref(base::RCC) }
+}
+
+pub fn rcc_mut() -> &'static mut Rcc {
+    unsafe { deref_mut(base::RCC) }
 }
 
 #[no_mangle]
