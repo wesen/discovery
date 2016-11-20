@@ -20,6 +20,7 @@ features = [
     "default-exception-handler",
     "default-panic-fmt",
     "interrupts",
+    "static-ram",
 ]
 
 [replace]

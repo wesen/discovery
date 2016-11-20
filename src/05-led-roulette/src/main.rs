@@ -1,6 +1,7 @@
 //#![deny(unsafe_code)]
 #![no_main]
 #![no_std]
+#![feature(fn_traits)]
 
 #[macro_use] extern crate f3;
 extern crate pg;
@@ -23,26 +24,6 @@ use rcc::Rcc;
 use syscfg::Syscfg;
 use exti::Exti;
 use nvic::Nvic;
-
-fn main_println() {
-    let half_period = 100;
-
-    iprintln!("Hello world {}", half_period);
-    panic!("Hello world");
-}
-
-fn main_roulette() {
-    let half_period = 100;
-
-    loop {
-        for (current, next) in LEDS.iter().zip(LEDS.iter().cycle().skip(1)) {
-            next.on();
-            delay::ms(half_period);
-            current.off();
-            delay::ms(half_period);
-        }
-    }
-}
 
 // button interaction
 fn config_user_button() {
@@ -68,27 +49,42 @@ fn config_user_button() {
     nvic_mut().iser0.modify(|_, w| w.setena(1 << 6));
 }
 
+static mut button_handler: Option<*const Fn()> = None;
+static mut i: u32 = 0u32;
+
 fn main_button() -> ! {
     config_user_button();
 
-    loop {
-        //        let b = gpioa().idr.read().idr0();
-        //
-        //        iprintln!("b: {}", b);
-        //
-        //        if gpioa().idr.read().idr0() {
-        //            LEDS[0].on();
-        //        } else {
-        //            LEDS[0].off();
-        //        }
+    let f = || {
+        exti_mut().pr1.write(|w| w.pr0(true));
+        let j;
+        unsafe {
+            i += 1;
+            j = i;
+        }
+        iprintln!("i: {}", j);
+        if j % 2 == 0 {
+            LEDS[0].on();
+        } else {
+            LEDS[0].off();
+        }
+    };
+
+    unsafe {
+        button_handler = Some(&f);
     }
+
+    loop {}
 }
 
 // interrupt handler
 #[export_name = "_exti0"]
 pub extern "C" fn exti0_handler() {
-    LEDS[0].on();
-    //    iprintln!("button interrupt");
+    unsafe {
+        if let Some(f) = button_handler {
+            (*f).call(());
+        }
+    }
 }
 
 // GPIO mappings
@@ -148,64 +144,9 @@ pub fn nvic_mut() -> &'static mut Nvic {
     unsafe { deref_mut(base::NVIC) }
 }
 
-#[no_mangle]
-#[inline(never)]
-pub fn main_registers() {
-    use core::ptr;
-
-    unsafe {
-        const GPIOE_BSRR: u32 = 0x4800_1018;
-
-        gpioe_mut().bsrr.write(|w| { w.br9(true) });
-        gpioe_mut().bsrr.write(|w| { w.br11(true) });
-        gpioe_mut().bsrr.write(|w| { w.br9(false) });
-        gpioe_mut().bsrr.write(|w| { w.br11(false) });
-
-
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 9);
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 11);
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (9 + 16));
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (11 + 16));
-
-        //        ptr::read_volatile(0x4800_1800 as *const u32);
-    }
-
-    unsafe {
-        const GPIOE_BSRR: u32 = 0x4800_1018;
-        const GPIOE_ODR: u32 = 0x4800_1014;
-
-        iprintln!("ODR = 0x{:04x}",
-                  ptr::read_volatile(GPIOE_ODR as *const u16));
-
-        // Turn on the NORTH LED (red)
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 9);
-
-        iprintln!("ODR = 0x{:04x}",
-                  ptr::read_volatile(GPIOE_ODR as *const u16));
-
-        // Turn on the EAST LED (green)
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << 11);
-
-        iprintln!("ODR = 0x{:04x}",
-                  ptr::read_volatile(GPIOE_ODR as *const u16));
-
-        // Turn off the NORTH LED
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (9 + 16));
-
-        iprintln!("ODR = 0x{:04x}",
-                  ptr::read_volatile(GPIOE_ODR as *const u16));
-
-        // Turn off the EAST LED
-        ptr::write_volatile(GPIOE_BSRR as *mut u32, 1 << (11 + 16));
-    }
-}
-
 #[inline(never)]
 #[no_mangle]
 pub fn main() -> ! {
-    //    main_println();
-    //    main_roulette();
-    //    main_registers();
     main_button();
 
     loop {}
